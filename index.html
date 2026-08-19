@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#f5f5f7">
+<title>NIHSS</title>
+<style>
+:root { --bg:#f5f5f7; --card:#fff; --text:#111; --muted:#6e6e73; --accent:#007aff; --selected:#dbeeff; }
+* { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+body { margin:0; background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Arial,sans-serif; }
+main { max-width:700px; margin:0 auto; padding:20px 14px 150px; }
+h1 { text-align:center; font-size:32px; margin:8px 0 4px; letter-spacing:-.5px; }
+.meta { text-align:center; color:var(--muted); font-size:14px; margin-bottom:18px; }
+.patient { background:var(--card); border-radius:14px; padding:14px; margin-bottom:14px; box-shadow:0 1px 4px rgba(0,0,0,.06); }
+.patient label { display:block; font-size:13px; color:var(--muted); margin-bottom:6px; }
+.patient input { width:100%; border:0; outline:0; background:#f2f2f7; border-radius:10px; padding:11px 12px; font-size:17px; }
+.item { background:var(--card); border-radius:14px; padding:14px; margin-bottom:10px; box-shadow:0 1px 4px rgba(0,0,0,.06); }
+.item-title { font-weight:700; font-size:17px; margin-bottom:10px; }
+.options { display:grid; grid-template-columns:repeat(auto-fit,minmax(52px,1fr)); gap:7px; }
+.option { position:relative; }
+.option input { position:absolute; opacity:0; pointer-events:none; }
+.option label { display:flex; align-items:center; justify-content:center; min-height:48px; border:1px solid #d1d1d6; border-radius:11px; background:#fafafa; font-size:17px; font-weight:600; cursor:pointer; user-select:none; }
+.option input:checked + label { background:var(--selected); border:2px solid var(--accent); color:#005ecb; }
+.total { position:fixed; left:0; right:0; bottom:0; padding:12px max(14px, env(safe-area-inset-left)) calc(12px + env(safe-area-inset-bottom)); background:rgba(255,255,255,.94); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); border-top:1px solid #d1d1d6; z-index:10; }
+.total-inner { max-width:700px; margin:auto; display:flex; align-items:center; justify-content:space-between; }
+.total-label { font-size:16px; font-weight:700; }
+.total-value { font-size:30px; font-weight:800; color:var(--accent); }
+.reset { margin-left:10px; border:0; background:#e5e5ea; border-radius:10px; padding:9px 12px; font-size:14px; }
+@media (max-width:380px) {
+  main { padding-left:10px; padding-right:10px; }
+  .item { padding:12px; }
+  .item-title { font-size:16px; }
+}
+</style>
+</head>
+<body>
+<main>
+  <h1>NIHSS</h1>
+  <div class="meta" id="timestamp"></div>
+
+  <div class="patient">
+    <label for="patient">Identité du patient (facultatif)</label>
+    <input id="patient" type="text" autocomplete="off" placeholder="Nom / prénom">
+  </div>
+
+  <section id="items"></section>
+</main>
+
+<div class="total">
+  <div class="total-inner">
+    <div>
+      <span class="total-label">Score NIHSS : </span>
+      <span class="total-value" id="total">0</span>
+    </div>
+    <button class="reset" type="button" onclick="resetScore()">Réinitialiser</button>
+  </div>
+</div>
+
+<script>
+const items = [
+  ["Vigilance", [0,1,2,3]],
+  ["Orientation", [0,1,2]],
+  ["Commande", [0,1,2]],
+  ["Oculomotricité", [0,1,2]],
+  ["Champ Visuel", [0,1,2,3]],
+  ["Paralysie Faciale", [0,1,2,3]],
+  ["Membre sup G", [0,1,2,3,4]],
+  ["Membre sup D", [0,1,2,3,4]],
+  ["Membre inf G", [0,1,2,3,4]],
+  ["Membre inf D", [0,1,2,3,4]],
+  ["Ataxie", [0,1,2]],
+  ["Sensibilité", [0,1,2]],
+  ["Langage", [0,1,2,3]],
+  ["Dysarthrie", [0,1,2]],
+  ["Extinction", [0,1,2]]
+];
+
+const container = document.getElementById("items");
+
+items.forEach(([name, scores], i) => {
+  const item = document.createElement("div");
+  item.className = "item";
+  item.innerHTML = `<div class="item-title">${i+1}. ${name}</div>
+    <div class="options">${scores.map(v => `
+      <div class="option">
+        <input type="radio" name="item${i}" id="item${i}_${v}" value="${v}">
+        <label for="item${i}_${v}">${v}</label>
+      </div>`).join("")}</div>`;
+  container.appendChild(item);
+});
+
+container.addEventListener("change", updateTotal);
+
+function updateTotal() {
+  let total = 0;
+  items.forEach((_, i) => {
+    const selected = document.querySelector(`input[name="item${i}"]:checked`);
+    if (selected) total += Number(selected.value);
+  });
+  document.getElementById("total").textContent = total;
+}
+
+function resetScore() {
+  document.querySelectorAll('input[type="radio"]').forEach(el => el.checked = false);
+  document.getElementById("patient").value = "";
+  updateTotal();
+  updateTimestamp();
+}
+
+function updateTimestamp() {
+  const now = new Date();
+  const pad = n => String(n).padStart(2,"0");
+  document.getElementById("timestamp").textContent =
+    `${pad(now.getDate())}/${pad(now.getMonth()+1)}/${String(now.getFullYear()).slice(-2)} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+}
+updateTimestamp();
+setInterval(updateTimestamp, 30000);
+</script>
+</body>
+</html>
